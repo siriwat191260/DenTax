@@ -1,0 +1,51 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --teal: #0D5C63;
+    --teal-light: #E1F5EE;
+    --teal-mid: #1D9E75;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-teal-900 text-white px-4 py-2 rounded-lg text-sm font-medium
+           hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed
+           transition-opacity flex items-center gap-2;
+  }
+
+  .btn-outline {
+    @apply border border-gray-200 bg-white text-gray-700 px-4 py-2 rounded-lg
+           text-sm font-medium hover:bg-gray-50 transition-colors;
+  }
+
+  .card {
+    @apply bg-white border border-gray-100 rounded-xl p-5;
+  }
+
+  .input {
+    @apply w-full border border-gray-200 rounded-lg px-3 py-2 text-sm
+           focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent;
+  }
+
+  .label {
+    @apply block text-xs text-gray-500 uppercase tracking-wide mb-1;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
+  }
+
+  .badge-teal  { @apply bg-teal-50 text-teal-600; }
+  .badge-blue  { @apply bg-blue-50  text-blue-700; }
+  .badge-green { @apply bg-green-50 text-green-700; }
+}

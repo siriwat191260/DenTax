@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: dentaledger-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: Supabase__Url
+        sync: false
+      - key: Supabase__ServiceRoleKey
+        sync: false
+      - key: Gemini__ApiKey
+        sync: false
+      - key: Jwt__Secret
+        sync: false
+      - key: Cors__AllowedOrigins__0
+        sync: false
