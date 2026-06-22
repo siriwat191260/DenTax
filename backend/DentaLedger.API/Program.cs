@@ -14,21 +14,27 @@ var config  = builder.Configuration;
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(config.GetConnectionString("DefaultConnection")));
 
-// ── Auth (Supabase JWT) ───────────────────────────────────────
+// ── Auth (Supabase JWT — JWKS / asymmetric keys) ───────────────
+var supabaseUrl = config["Supabase:Url"]!.TrimEnd('/');
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt =>
     {
-        opt.Authority = $"{config["Supabase:Url"]}/auth/v1";
+        // Supabase's new projects sign JWTs with rotating asymmetric keys (JWKS).
+        // Authority + MetadataAddress let the JWT middleware fetch the public
+        // signing keys automatically instead of using a static secret.
+        opt.Authority        = $"{supabaseUrl}/auth/v1";
+        opt.MetadataAddress  = $"{supabaseUrl}/auth/v1/.well-known/openid-configuration";
+        opt.RequireHttpsMetadata = true;
+
         opt.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(config["Jwt:Secret"]!)),
             ValidateIssuer   = true,
-            ValidIssuer      = config["Jwt:Issuer"],
+            ValidIssuer      = $"{supabaseUrl}/auth/v1",
             ValidateAudience = true,
-            ValidAudience    = config["Jwt:Audience"],
-            ClockSkew        = TimeSpan.Zero,
+            ValidAudience    = config["Jwt:Audience"] ?? "authenticated",
+            ClockSkew        = TimeSpan.FromSeconds(30),
         };
     });
 builder.Services.AddAuthorization();
