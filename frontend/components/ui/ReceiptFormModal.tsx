@@ -110,6 +110,7 @@ export function ReceiptFormModal({ receipt, onClose, onSaved }: Props) {
                     {...register(`items.${i}.amount`, { onChange: recalcTotal })}
                     type="number"
                     placeholder="0"
+                    step="0.01"
                     className="w-28 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-teal-400"
                   />
                   <button type="button" onClick={() => { remove(i); recalcTotal() }} className="text-gray-400 hover:text-red-500 px-1">
@@ -130,6 +131,7 @@ export function ReceiptFormModal({ receipt, onClose, onSaved }: Props) {
             <input
               {...register('total')}
               type="number"
+              step="0.01"
               className="w-40 border border-gray-200 rounded-lg px-3 py-2 text-sm text-right font-medium focus:outline-none focus:ring-2 focus:ring-teal-400 ml-auto"
             />
           </div>

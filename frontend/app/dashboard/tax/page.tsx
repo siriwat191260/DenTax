@@ -288,6 +288,7 @@ export default function TaxPage() {
                 </label>
                 <input
                   type="number"
+                  step="0.01"
                   {...register("extraIncome")}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
                 />
@@ -336,6 +337,7 @@ export default function TaxPage() {
                   </label>
                   <input
                     type="number"
+                    step="0.01"
                     {...register(f.name as any)}
                     className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-teal-400"
                   />
