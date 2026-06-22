@@ -209,6 +209,7 @@ export default function ScanPage() {
                       {...register(`items.${i}.amount`, { onChange: recalcTotal })}
                       type="number"
                       className="input w-32 text-right"
+                      step="0.01"
                       placeholder="0"
                     />
                     <button
@@ -236,6 +237,7 @@ export default function ScanPage() {
               <input
                 {...register('total')}
                 type="number"
+                step="0.01"
                 className="input w-40 text-right font-medium"
               />
               {errors.total && <p className="text-xs text-red-500">{errors.total.message}</p>}
