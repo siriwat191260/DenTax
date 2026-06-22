@@ -33,12 +33,30 @@ public class GeminiService(HttpClient http, IConfiguration config, ILogger<Gemin
     };
 
     private const string Prompt = """
-        วิเคราะห์ใบเสร็จในภาพนี้ ตอบเป็น JSON เท่านั้น ไม่มี markdown ไม่มี backtick
+        วิเคราะห์เอกสารในภาพนี้ เอกสารอาจเป็นได้ 2 แบบ:
+
+        แบบที่ 1 — ใบเสร็จรับเงินรายการเดียว (ใบเสร็จคนไข้คนเดียว)
+        แบบที่ 2 — รายงานสรุปรายได้ทันตแพทย์รายวัน (มีตารางหลายแถว หลายคนไข้
+                   และมีส่วน "Dentist Fee" หรือ "DF" สรุปท้ายตาราง)
+
+        กรณีเป็นแบบที่ 2 (รายงานสรุปรายวัน) ให้ดึงค่าตามนี้:
+        - date: วันที่ของรายงาน (พ.ศ. ให้แปลงเป็น ค.ศ. โดยลบ 543 ปี)
+        - patient: ชื่อทันตแพทย์ (จากหัวรายงานหรือตาราง "Dentist Fee")
+        - category: "สรุปรายได้รายวัน"
+        - total: ใช้ค่า "Net DF" (ส่วนแบ่งสุทธิของหมอ หลังหัก lab fee และ promotion)
+                 ไม่ใช่ยอดขายรวม (Total/ยอดเรียกเก็บ) และไม่ใช่ DF ก่อนหัก
+        - items: สร้างรายการเดียว [{"name": "ส่วนแบ่งรายได้ทันตแพทย์ (Net DF)", "amount": <Net DF>}]
+        - note: ใส่จำนวนคนไข้ในรายงาน เช่น "15 ราย"
+
+        กรณีเป็นแบบที่ 1 (ใบเสร็จปกติ) ให้ดึงข้อมูลตามปกติ:
+        - date, patient (ชื่อคนไข้), category (ประเภทบริการ), payment, items แต่ละรายการ, total
+
+        ตอบเป็น JSON เท่านั้น ไม่มี markdown ไม่มี backtick ห้ามมีคำอธิบายอื่นนอกเหนือ JSON:
         {
           "date": "YYYY-MM-DD หรือ null ถ้าไม่พบ",
-          "patient": "ชื่อผู้ป่วยหรือผู้จ่าย หรือ empty string",
-          "category": "ประเภทบริการทันตกรรม",
-          "payment": "ช่องทางชำระเงิน",
+          "patient": "ชื่อผู้ป่วยหรือชื่อทันตแพทย์ หรือ empty string",
+          "category": "ประเภทบริการทันตกรรม หรือ สรุปรายได้รายวัน",
+          "payment": "ช่องทางชำระเงิน หรือ empty string ถ้าไม่เกี่ยวข้อง",
           "items": [{"name": "รายการ", "amount": 0}],
           "total": 0,
           "note": "หมายเหตุถ้ามี",
@@ -80,14 +98,38 @@ public class GeminiService(HttpClient http, IConfiguration config, ILogger<Gemin
         };
 
         var url      = $"{baseUrl}/models/{model}:generateContent?key={apiKey}";
-        var content  = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-        var response = await http.PostAsync(url, content);
+        var requestJson = JsonSerializer.Serialize(requestBody);
 
-        if (!response.IsSuccessStatusCode)
+        HttpResponseMessage response = null!;
+        const int maxAttempts = 3;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            var err = await response.Content.ReadAsStringAsync();
-            logger.LogError("Gemini API error {Status}: {Error}", response.StatusCode, err);
-            throw new InvalidOperationException($"Gemini API error: {response.StatusCode}");
+            using var content = new StringContent(requestJson, Encoding.UTF8, "application/json");
+            response = await http.PostAsync(url, content);
+
+            if (response.IsSuccessStatusCode)
+                break;
+
+            // Retry on transient errors: 503 Service Unavailable, 429 Too Many Requests, 500/502/504
+            var isTransient = response.StatusCode is System.Net.HttpStatusCode.ServiceUnavailable
+                or System.Net.HttpStatusCode.TooManyRequests
+                or System.Net.HttpStatusCode.InternalServerError
+                or System.Net.HttpStatusCode.BadGateway
+                or System.Net.HttpStatusCode.GatewayTimeout;
+
+            if (!isTransient || attempt == maxAttempts)
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                logger.LogError("Gemini API error {Status} (attempt {Attempt}/{Max}): {Error}",
+                    response.StatusCode, attempt, maxAttempts, err);
+                throw new InvalidOperationException($"Gemini API error: {response.StatusCode}");
+            }
+
+            var delaySeconds = Math.Pow(2, attempt - 1); // 1s, 2s, 4s
+            logger.LogWarning("Gemini API returned {Status}, retrying in {Delay}s (attempt {Attempt}/{Max})",
+                response.StatusCode, delaySeconds, attempt, maxAttempts);
+            await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
         }
 
         var body = await response.Content.ReadAsStringAsync();
